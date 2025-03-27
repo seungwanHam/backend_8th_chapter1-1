@@ -18,7 +18,7 @@ describe('PointService', () => {
       providers: [
         PointService,
         UserPointTable,
-        PointHistoryTable,
+        PointHistoryTable
       ]
     }).compile();
 
@@ -176,9 +176,47 @@ describe('PointService', () => {
         .toThrow(MaxPointExceededException);
     });
 
-    it('최소 금액인 1 포인트로 충전해도 정상적으로 처리되어야 한다', async () => { });
+    it('최소 금액인 1 포인트로 충전해도 정상적으로 처리되어야 한다', async () => {
+      // Given
+      const userId = 1;
+      const minAmount = 1;
+      const currentPoint = { id: userId, point: 100, updateMillis: Date.now() };
+      const updatedPoint = { id: userId, point: 101, updateMillis: Date.now() };
 
-    it('정확히 최대 한도(1,000,000)까지 충전하면 정상적으로 처리되어야 한다', async () => { });
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+      jest.spyOn(userPointTable, 'insertOrUpdate').mockResolvedValue(updatedPoint);
+      jest.spyOn(pointHistoryTable, 'insert').mockResolvedValue({
+        id: 1, userId, amount: minAmount, type: TransactionType.CHARGE, timeMillis: expect.any(Number)
+      });
+
+      // When
+      const result = await service.chargePoint(userId, minAmount);
+
+      // Then
+      expect(result).toEqual(updatedPoint);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(userId, 101);
+    });
+
+    it('정확히 최대 한도(1,000,000)까지 충전하면 정상적으로 처리되어야 한다', async () => {
+      // Given
+      const userId = 1;
+      const currentPoint = { id: userId, point: 900000, updateMillis: Date.now() };
+      const chargeAmount = 100000; // 정확히 최대치까지
+      const updatedPoint = { id: userId, point: 1000000, updateMillis: Date.now() };
+
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+      jest.spyOn(userPointTable, 'insertOrUpdate').mockResolvedValue(updatedPoint);
+      jest.spyOn(pointHistoryTable, 'insert').mockResolvedValue({
+        id: 1, userId, amount: chargeAmount, type: TransactionType.CHARGE, timeMillis: expect.any(Number)
+      });
+
+      // When
+      const result = await service.chargePoint(userId, chargeAmount);
+
+      // Then
+      expect(result).toEqual(updatedPoint);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(userId, 1000000);
+    });
   })
 
   describe('usePoint', () => {
@@ -240,7 +278,26 @@ describe('PointService', () => {
         .toThrow(InsufficientPointException);
     });
 
-    it('보유 포인트 전액을 정확히 사용하면 잔액이 0이 되고 정상적으로 처리되어야 한다', async () => { });
+    it('보유 포인트 전액을 정확히 사용하면 잔액이 0이 되고 정상적으로 처리되어야 한다', async () => {
+      // Given
+      const userId = 1;
+      const currentPoint = { id: userId, point: 200, updateMillis: Date.now() };
+      const fullAmount = 200; // 전액 사용
+      const updatedPoint = { id: userId, point: 0, updateMillis: Date.now() };
+
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+      jest.spyOn(userPointTable, 'insertOrUpdate').mockResolvedValue(updatedPoint);
+      jest.spyOn(pointHistoryTable, 'insert').mockResolvedValue({
+        id: 1, userId, amount: fullAmount, type: TransactionType.USE, timeMillis: expect.any(Number)
+      });
+
+      // When
+      const result = await service.usePoint(userId, fullAmount);
+
+      // Then
+      expect(result).toEqual(updatedPoint);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(userId, 0);
+    });
   });
 
 })
