@@ -166,4 +166,65 @@ describe('PointService', () => {
         .toThrow(MaxPointExceededException);
     });
   })
+
+  describe('usePoint', () => {
+    it('유효한 금액으로 포인트를 사용할 수 있어야 한다', async () => {
+      // Given
+      const userId = 1;
+      const amount = 50;
+      const currentPoint = { id: userId, point: 200, updateMillis: Date.now() };
+      const updatedPoint = { id: userId, point: 150, updateMillis: Date.now() };
+      const history = {
+        id: 1,
+        userId,
+        amount,
+        type: TransactionType.USE,
+        timeMillis: expect.any(Number)
+      };
+
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+      jest.spyOn(userPointTable, 'insertOrUpdate').mockResolvedValue(updatedPoint);
+      jest.spyOn(pointHistoryTable, 'insert').mockResolvedValue(history);
+
+      // When
+      const result = await service.usePoint(userId, amount);
+
+      // Then
+      expect(result).toEqual(updatedPoint);
+      expect(userPointTable.selectById).toHaveBeenCalledWith(userId);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(userId, 150);
+      expect(pointHistoryTable.insert).toHaveBeenCalledWith(
+        userId,
+        amount,
+        TransactionType.USE,
+        expect.any(Number)
+      );
+    });
+
+    it('음수 금액으로 사용할 경우 예외가 발생해야 한다', async () => {
+      // Given
+      const userId = 1;
+      const negativeAmount = -50;
+
+      // When & Then
+      await expect(service.usePoint(userId, negativeAmount))
+        .rejects
+        .toThrow(InvalidAmountException);
+    });
+
+    it('잔고가 부족할 경우 예외가 발생해야 한다', async () => {
+      // Given
+      const userId = 1;
+      const currentPoint = { id: userId, point: 100, updateMillis: Date.now() };
+      const largeAmount = 200; // 현재 포인트보다 큰 금액
+
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+
+      // When & Then
+      await expect(service.usePoint(userId, largeAmount))
+        .rejects
+        .toThrow(InsufficientPointException);
+    });
+  });
+
 })
