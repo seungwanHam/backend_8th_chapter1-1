@@ -29,12 +29,12 @@ describe('PointService', () => {
   });
 
   // it :: 실제 테스트 케이스를 정의. 각 it 블록은 하나의 테스트 케이스를 나타낸다.
-  it('should be defined', () => {
+  it('PointService 인스턴스가 정상적으로 생성되어야 한다', () => {
     expect(service).toBeDefined();
   });
 
   describe('getPoint', () => {
-    it('사용자 ID로 포인틀르 조회할 수 있어야 한다.', async () => {
+    it('1 이상의 양수인 사용자 ID로 조회하면 해당 사용자의 포인트 정보를 반환해야 한다', async () => {
       // Given
       const userId = 1;
       const expectedPoint = { id: userId, point: 100, updateMillis: Date.now() };
@@ -53,7 +53,7 @@ describe('PointService', () => {
       expect(userPointTable.selectById).toHaveBeenCalledWith(userId);
     })
 
-    it('유효하지 않은 사용자 ID로 포인트 조회 시 예외가 발생해야 한다.', async () => {
+    it('0 이하의 사용자 ID로 조회하면 InvalidUserIdException을 발생시켜야 한다', async () => {
       // Given
       const invalidUserId = -1;
 
@@ -70,10 +70,20 @@ describe('PointService', () => {
         .rejects
         .toHaveProperty('message', `유효하지 않은 사용자 ID입니다: ${invalidUserId}`);
     })
+
+    it('데이터베이스에 존재하지 않는 사용자 ID로 조회하면 초기 포인트가 0인 객체를 반환해야 한다', async () => {
+      const newUserId = 999;
+      jest.spyOn(userPointTable, 'selectById').mockImplementation(async (id) => {
+        return { id, point: 0, updateMillis: Date.now() };
+      });
+
+      const result = await service.getPoint(newUserId);
+      expect(result.point).toBe(0);
+    })
   })
 
   describe('getPointHistories', () => {
-    it('사용자 ID로 포인트 내역을 모두 조회할 수 있어야 한다.', async () => {
+    it('1 이상의 양수인 사용자 ID로 조회하면 해당 사용자의 모든 포인트 내역 목록을 반환해야 한다', async () => {
       // Given
       const userId = 1;
       const expectedHistories = [
@@ -90,7 +100,7 @@ describe('PointService', () => {
       expect(pointHistoryTable.selectAllByUserId).toHaveBeenCalledWith(userId);
     })
 
-    it('유효하지 않은 사용자 ID로 내역 조회 시 예외가 발생해야 한다', async () => {
+    it('0 이하의 사용자 ID로 내역 조회하면 InvalidUserIdException을 발생시켜야 한다', async () => {
       // Given
       const invalidUserId = -1;
       jest.spyOn(pointHistoryTable, 'selectAllByUserId').mockImplementation(() => {
@@ -103,7 +113,7 @@ describe('PointService', () => {
         .toThrow(InvalidUserIdException);
     });
 
-    it('사용한 포인트 내역이 없는 경우 빈 배열을 반환해야 한다.', async () => {
+    it('포인트 내역이 없는 사용자 ID로 조회하면 빈 배열을 반환해야 한다', async () => {
       // Given
       const userId = 1;
       const expectedHistories = [];
@@ -119,7 +129,7 @@ describe('PointService', () => {
   })
 
   describe('chargePoint', () => {
-    it('1 이상의 양수인 유효한 금액으로 포인트를 충전할 수 있어야 한다', async () => {
+    it('1 이상의 양수인 금액으로 충전하면 사용자 포인트가 정확히 증가하고 내역이 기록되어야 한다', async () => {
       // Given
       const userId = 1;
       const amount = 100;
@@ -141,7 +151,7 @@ describe('PointService', () => {
       expect(pointHistoryTable.insert).toHaveBeenCalledWith(userId, amount, TransactionType.CHARGE, expect.any(Number));
     })
 
-    it('음수 금액으로 충전할 경우 예외가 발생해야 한다', async () => {
+    it('0 이하의 음수인 금액으로 충전을 시도하면 InvalidAmountException을 발생시켜야 한다', async () => {
       // Given
       const userId = 1;
       const negativeAmount = -100;
@@ -152,7 +162,7 @@ describe('PointService', () => {
         .toThrow(InvalidAmountException);
     });
 
-    it('최대 포인트를 초과할 경우 예외가 발생해야 한다', async () => {
+    it('충전 후 포인트가 1,000,000(MAX_POINT)을 초과하면 MaxPointExceededException을 발생시켜야 한다', async () => {
       // Given
       const userId = 1;
       const currentPoint = { id: userId, point: 900000, updateMillis: Date.now() };
@@ -165,10 +175,14 @@ describe('PointService', () => {
         .rejects
         .toThrow(MaxPointExceededException);
     });
+
+    it('최소 금액인 1 포인트로 충전해도 정상적으로 처리되어야 한다', async () => { });
+
+    it('정확히 최대 한도(1,000,000)까지 충전하면 정상적으로 처리되어야 한다', async () => { });
   })
 
   describe('usePoint', () => {
-    it('유효한 금액으로 포인트를 사용할 수 있어야 한다', async () => {
+    it('보유 포인트보다 적은 1 이상의 양수 금액으로 사용하면 사용자 포인트가 정확히 차감되고 내역이 기록되어야 한다', async () => {
       // Given
       const userId = 1;
       const amount = 50;
@@ -201,7 +215,7 @@ describe('PointService', () => {
       );
     });
 
-    it('음수 금액으로 사용할 경우 예외가 발생해야 한다', async () => {
+    it('0 이하의 음수 금액으로 사용 시도하면 InvalidAmountException을 발생시켜야 한다', async () => {
       // Given
       const userId = 1;
       const negativeAmount = -50;
@@ -212,7 +226,7 @@ describe('PointService', () => {
         .toThrow(InvalidAmountException);
     });
 
-    it('잔고가 부족할 경우 예외가 발생해야 한다', async () => {
+    it('보유 포인트보다 많은 금액으로 사용 시도하면 InsufficientPointException을 발생시켜야 한다', async () => {
       // Given
       const userId = 1;
       const currentPoint = { id: userId, point: 100, updateMillis: Date.now() };
@@ -225,6 +239,8 @@ describe('PointService', () => {
         .rejects
         .toThrow(InsufficientPointException);
     });
+
+    it('보유 포인트 전액을 정확히 사용하면 잔액이 0이 되고 정상적으로 처리되어야 한다', async () => { });
   });
 
 })
