@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PointService } from './point.service';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
-import { InvalidUserIdException, InvalidAmountException, MaxPointExceededException, InsufficientPointException } from './point.exception';
+import { InvalidUserIdException, InvalidAmountException, MaxPointExceededException, InsufficientPointException } from '../common/exceptions/transaction.exception';
 import { TransactionType } from './point.model';
 
 // describe :: 관련된 테스트 케이스들을 논리적으로 그룹화, 중첩이 가능하여 계층적 테스트 구조를 만들 수 있다.
@@ -22,7 +22,7 @@ describe('PointService', () => {
         {
           provide: 'POINT_LOCK',
           useValue: {
-            acquire: jest.fn().mockImplementation(() => Promise.resolve(() => { }))
+            acquire: jest.fn().mockImplementation((resourceId: number) => Promise.resolve(() => { }))
           }
         }
       ]

@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
 import { PointHistory, TransactionType, UserPoint } from './point.model';
-import { InsufficientPointException, InvalidAmountException, InvalidUserIdException, MaxPointExceededException } from './point.exception';
-import { IPointLock } from './lock/point-lock.interface';
+import { InsufficientPointException, InvalidAmountException, InvalidUserIdException, MaxPointExceededException } from '../common/exceptions/transaction.exception';
+import { IResourceLock } from '../common/locks/lock.interface';
 
 @Injectable()
 export class PointService {
@@ -13,7 +13,7 @@ export class PointService {
   constructor(
     private readonly userPointTable: UserPointTable,
     private readonly pointHistoryTable: PointHistoryTable,
-    @Inject('POINT_LOCK') private readonly pointLock: IPointLock,
+    @Inject('POINT_LOCK') private readonly pointLock: IResourceLock,
   ) { }
 
   /**

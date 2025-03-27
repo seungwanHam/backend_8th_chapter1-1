@@ -4,7 +4,7 @@ import { PointService } from './point.service';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
 import { PointModule } from './point.module';
-import { MemoryPointLock } from './lock/memory-lock';
+import { MemoryResourceLock } from '../common/locks/memory-lock';
 
 /**
  * 포인트 시스템 통합 테스트
@@ -15,7 +15,7 @@ describe('Point 통합 테스트', () => {
   let service: PointService;
   let userPointTable: UserPointTable;
   let pointHistoryTable: PointHistoryTable;
-  let pointLock: MemoryPointLock;
+  let pointLock: MemoryResourceLock;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -26,7 +26,7 @@ describe('Point 통합 테스트', () => {
     service = moduleFixture.get<PointService>(PointService);
     userPointTable = moduleFixture.get<UserPointTable>(UserPointTable);
     pointHistoryTable = moduleFixture.get<PointHistoryTable>(PointHistoryTable);
-    pointLock = moduleFixture.get<MemoryPointLock>('POINT_LOCK');
+    pointLock = moduleFixture.get<MemoryResourceLock>('POINT_LOCK');
 
     await app.init();
   });

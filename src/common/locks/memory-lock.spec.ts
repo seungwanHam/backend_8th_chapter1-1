@@ -1,20 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MemoryPointLock } from './memory-lock';
+import { MemoryResourceLock } from './memory-lock';
 
-describe('MemoryPointLock', () => {
-  let lock: MemoryPointLock;
+describe('MemoryResourceLock', () => {
+  let lock: MemoryResourceLock;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MemoryPointLock],
+      providers: [MemoryResourceLock],
     }).compile();
 
-    lock = module.get<MemoryPointLock>(MemoryPointLock);
+    lock = module.get<MemoryResourceLock>(MemoryResourceLock);
   });
 
   it('락 획득 및 해제 기본 기능', async () => {
-    const userId = 1;
-    const release = await lock.acquire(userId);
+    const resourceId = 1;
+    const release = await lock.acquire(resourceId);
 
     expect(typeof release).toBe('function');
 
@@ -22,20 +22,20 @@ describe('MemoryPointLock', () => {
     release();
 
     // 다시 락 획득 가능 확인
-    const release2 = await lock.acquire(userId);
+    const release2 = await lock.acquire(resourceId);
     expect(typeof release2).toBe('function');
     release2();
   });
 
-  it('동일 사용자 락은 순차적으로 처리됨', async () => {
-    const userId = 1;
+  it('동일 리소스 락은 순차적으로 처리됨', async () => {
+    const resourceId = 1;
 
     // 첫 번째 락 획득
-    const release1 = await lock.acquire(userId);
+    const release1 = await lock.acquire(resourceId);
 
     // 두 번째 락 요청
     let lock2Acquired = false;
-    const lockPromise2 = lock.acquire(userId).then(release => {
+    const lockPromise2 = lock.acquire(resourceId).then(release => {
       lock2Acquired = true;
       return release;
     });
@@ -51,13 +51,13 @@ describe('MemoryPointLock', () => {
     release2();
   });
 
-  it('서로 다른 사용자의 락은 독립적으로 동작', async () => {
-    const user1 = 1;
-    const user2 = 2;
+  it('서로 다른 리소스의 락은 독립적으로 동작', async () => {
+    const resource1 = 1;
+    const resource2 = 2;
 
-    // 두 사용자의 락을 동시에 획득할 수 있어야 함
-    const release1 = await lock.acquire(user1);
-    const release2 = await lock.acquire(user2);
+    // 두 리소스의 락을 동시에 획득할 수 있어야 함
+    const release1 = await lock.acquire(resource1);
+    const release2 = await lock.acquire(resource2);
 
     expect(typeof release1).toBe('function');
     expect(typeof release2).toBe('function');
@@ -67,17 +67,17 @@ describe('MemoryPointLock', () => {
   });
 
   it('여러 락 요청은 순서대로 처리됨', async () => {
-    const userId = 1;
+    const resourceId = 1;
     const numberOfLocks = 5;
     const lockReleases: Array<() => void> = [];
 
     // 첫 번째 락 획득
-    lockReleases.push(await lock.acquire(userId));
+    lockReleases.push(await lock.acquire(resourceId));
 
     // 나머지 락 요청
     const lockPromises = Array(numberOfLocks - 1)
       .fill(null)
-      .map(() => lock.acquire(userId));
+      .map(() => lock.acquire(resourceId));
 
     // 순서대로 락 해제하며 다음 락 획득 확인
     for (let i = 0; i < numberOfLocks - 1; i++) {
