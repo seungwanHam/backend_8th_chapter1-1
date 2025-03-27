@@ -21,4 +21,18 @@ export class PointService {
     }
     return this.userPointTable.selectById(userId);
   }
+
+  /**
+   * 사용자의 포인트 충전/사용 내역을 조회합니다.
+   * 
+   * @param userId - 조회할 사용자의 ID
+   * @returns 포인트 내역 목록
+   * @throws {Error} 유효하지 않은 사용자 ID인 경우
+   */
+  async getPointHistories(userId: number): Promise<PointHistory[]> {
+    if (userId <= 0) {
+      throw new InvalidUserIdException(userId);
+    }
+    return this.pointHistoryTable.selectAllByUserId(userId);
+  }
 }

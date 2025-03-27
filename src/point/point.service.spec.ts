@@ -3,7 +3,7 @@ import { PointService } from './point.service';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
 import { InvalidUserIdException } from './point.exception';
-
+import { TransactionType } from './point.model';
 
 // describe :: 관련된 테스트 케이스들을 논리적으로 그룹화, 중첩이 가능하여 계층적 테스트 구조를 만들 수 있다.
 describe('PointService', () => {
@@ -71,5 +71,53 @@ describe('PointService', () => {
         .toHaveProperty('message', `유효하지 않은 사용자 ID입니다: ${invalidUserId}`);
     })
   })
+
+  describe('getPointHistories', () => {
+    it('사용자 ID로 포인트 내역을 모두 조회할 수 있어야 한다.', async () => {
+      // Given
+      const userId = 1;
+      const expectedHistories = [
+        { id: 1, userId, amount: 100, type: TransactionType.CHARGE, timeMillis: Date.now() },
+        { id: 2, userId, amount: 50, type: TransactionType.USE, timeMillis: Date.now() },
+      ];
+      jest.spyOn(pointHistoryTable, 'selectAllByUserId').mockResolvedValue(expectedHistories);
+
+      // When
+      const result = await service.getPointHistories(userId);
+
+      // Then
+      expect(result).toEqual(expectedHistories);
+      expect(pointHistoryTable.selectAllByUserId).toHaveBeenCalledWith(userId);
+    })
+
+    it('유효하지 않은 사용자 ID로 내역 조회 시 예외가 발생해야 한다', async () => {
+      // Given
+      const invalidUserId = -1;
+      jest.spyOn(pointHistoryTable, 'selectAllByUserId').mockImplementation(() => {
+        throw new Error('올바르지 않은 ID 값 입니다.');
+      });
+
+      // When & Then
+      await expect(service.getPointHistories(invalidUserId))
+        .rejects
+        .toThrow('올바르지 않은 ID 값 입니다.');
+    });
+
+    it('사용한 포인트 내역이 없는 경우 빈 배열을 반환해야 한다.', async () => {
+      // Given
+      const userId = 1;
+      const expectedHistories = [];
+      jest.spyOn(pointHistoryTable, 'selectAllByUserId').mockResolvedValue(expectedHistories);
+
+      // When
+      const result = await service.getPointHistories(userId);
+
+      // Then
+      expect(result).toEqual(expectedHistories);
+      expect(pointHistoryTable.selectAllByUserId).toHaveBeenCalledWith(userId);
+    })
+  })
+
+
 })
 
