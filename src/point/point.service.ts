@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
 import { PointHistory, TransactionType, UserPoint } from './point.model';
+import { InvalidUserIdException } from './point.exception';
 
 
 @Injectable()
@@ -15,6 +16,9 @@ export class PointService {
   ) { }
 
   async getPoint(userId: number): Promise<UserPoint> {
+    if (userId <= 0) {
+      throw new InvalidUserIdException(userId);
+    }
     return this.userPointTable.selectById(userId);
   }
 }

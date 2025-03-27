@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PointService } from './point.service';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
+import { InvalidUserIdException } from './point.exception';
 
 
 // describe :: 관련된 테스트 케이스들을 논리적으로 그룹화, 중첩이 가능하여 계층적 테스트 구조를 만들 수 있다.
@@ -50,6 +51,24 @@ describe('PointService', () => {
       expect(result).toEqual(expectedPoint);
       // toHaveBeenCalledWith :: 특정 함수가 특정 인자로 호출되었는지 검증
       expect(userPointTable.selectById).toHaveBeenCalledWith(userId);
+    })
+
+    it('유효하지 않은 사용자 ID로 포인트 조회 시 예외가 발생해야 한다.', async () => {
+      // Given
+      const invalidUserId = -1;
+
+      // 1. 서비스 계층에서 ID 유효성을 검증하도록 수정
+      // 2. 직접적으로 InvalidUserIdException을 사용해야 함
+
+      // When & Then
+      await expect(service.getPoint(invalidUserId))
+        .rejects
+        .toThrow(InvalidUserIdException);
+
+      // 원한다면 더 구체적인 메시지 검증도 가능 
+      await expect(service.getPoint(invalidUserId))
+        .rejects
+        .toHaveProperty('message', `유효하지 않은 사용자 ID입니다: ${invalidUserId}`);
     })
   })
 })
