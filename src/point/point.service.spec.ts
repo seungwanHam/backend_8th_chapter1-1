@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PointService } from './point.service';
 import { UserPointTable } from '../database/userpoint.table';
 import { PointHistoryTable } from '../database/pointhistory.table';
-import { InvalidUserIdException } from './point.exception';
+import { InvalidUserIdException, InvalidAmountException, MaxPointExceededException, InsufficientPointException } from './point.exception';
 import { TransactionType } from './point.model';
 
 // describe :: 관련된 테스트 케이스들을 논리적으로 그룹화, 중첩이 가능하여 계층적 테스트 구조를 만들 수 있다.
@@ -94,13 +94,13 @@ describe('PointService', () => {
       // Given
       const invalidUserId = -1;
       jest.spyOn(pointHistoryTable, 'selectAllByUserId').mockImplementation(() => {
-        throw new Error('올바르지 않은 ID 값 입니다.');
+        throw new InvalidUserIdException(invalidUserId);
       });
 
       // When & Then
       await expect(service.getPointHistories(invalidUserId))
         .rejects
-        .toThrow('올바르지 않은 ID 값 입니다.');
+        .toThrow(InvalidUserIdException);
     });
 
     it('사용한 포인트 내역이 없는 경우 빈 배열을 반환해야 한다.', async () => {
@@ -118,6 +118,52 @@ describe('PointService', () => {
     })
   })
 
+  describe('chargePoint', () => {
+    it('1 이상의 양수인 유효한 금액으로 포인트를 충전할 수 있어야 한다', async () => {
+      // Given
+      const userId = 1;
+      const amount = 100;
+      const currentPoint = { id: userId, point: 200, updateMillis: Date.now() };
+      const updatedPoint = { id: userId, point: 300, updateMillis: Date.now() };
+      const history = { id: 1, userId, amount, type: TransactionType.CHARGE, timeMillis: expect.any(Number) };
 
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+      jest.spyOn(userPointTable, 'insertOrUpdate').mockResolvedValue(updatedPoint);
+      jest.spyOn(pointHistoryTable, 'insert').mockResolvedValue(history);
+
+      // When
+      const result = await service.chargePoint(userId, amount);
+
+      // Then
+      expect(result).toEqual(updatedPoint);
+      expect(userPointTable.selectById).toHaveBeenCalledWith(userId);
+      expect(userPointTable.insertOrUpdate).toHaveBeenCalledWith(userId, 300);
+      expect(pointHistoryTable.insert).toHaveBeenCalledWith(userId, amount, TransactionType.CHARGE, expect.any(Number));
+    })
+
+    it('음수 금액으로 충전할 경우 예외가 발생해야 한다', async () => {
+      // Given
+      const userId = 1;
+      const negativeAmount = -100;
+
+      // When & Then
+      await expect(service.chargePoint(userId, negativeAmount))
+        .rejects
+        .toThrow(InvalidAmountException);
+    });
+
+    it('최대 포인트를 초과할 경우 예외가 발생해야 한다', async () => {
+      // Given
+      const userId = 1;
+      const currentPoint = { id: userId, point: 900000, updateMillis: Date.now() };
+      const largeAmount = 200000; // 합계가 MAX_POINT(1000000)를 초과
+
+      jest.spyOn(userPointTable, 'selectById').mockResolvedValue(currentPoint);
+
+      // When & Then
+      await expect(service.chargePoint(userId, largeAmount))
+        .rejects
+        .toThrow(MaxPointExceededException);
+    });
+  })
 })
-
