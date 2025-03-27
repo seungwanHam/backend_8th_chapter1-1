@@ -18,7 +18,13 @@ describe('PointService', () => {
       providers: [
         PointService,
         UserPointTable,
-        PointHistoryTable
+        PointHistoryTable,
+        {
+          provide: 'POINT_LOCK',
+          useValue: {
+            acquire: jest.fn().mockImplementation(() => Promise.resolve(() => { }))
+          }
+        }
       ]
     }).compile();
 
